@@ -15,4 +15,5 @@ def set_persistent_workers(data_module: VisionDataModule):
             pin_memory=self.pin_memory,
             persistent_workers=True
         )
+
     data_module._data_loader = _data_loader

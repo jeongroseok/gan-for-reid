@@ -106,31 +106,34 @@ class LatentDimInterpolator(Callback):
 
     def interpolate_latent_space_related(self, pl_module: GAN) -> list[Tensor]:
         points = self.points.to(pl_module.device)
-        images = []
+        images = [points[:1, ...]]
         with torch.no_grad():
             pl_module.eval()
             _, _, z_rel, z_unrel, y_hat = pl_module.encode(points)
 
-            for w in np.linspace(0, 1, self.steps):
+            for w in np.linspace(0, 1, self.steps - 2):
                 z_rel_cur = torch.lerp(z_rel[0], z_rel[1], w).unsqueeze_(0)
                 img = pl_module.decode(z_rel_cur, z_unrel[0].unsqueeze(0))
                 images.append(img)
 
         pl_module.train()
+        images.append(points[1:, ...])
         return images
 
     def interpolate_latent_space_unrelated(self, pl_module: GAN) -> list[Tensor]:
         points = self.points.to(pl_module.device)
         images = []
+        images = [points[:1, ...]]
         with torch.no_grad():
             pl_module.eval()
             _, _, z_rel, z_unrel, y_hat = pl_module.encode(points)
 
-            for w in np.linspace(0, 1, self.steps):
+            for w in np.linspace(0, 1, self.steps - 2):
                 z_unrel_cur = torch.lerp(
                     z_unrel[0], z_unrel[1], w).unsqueeze_(0)
                 img = pl_module.decode(z_rel[0].unsqueeze(0), z_unrel_cur)
                 images.append(img)
 
         pl_module.train()
+        images.append(points[1:, ...])
         return images

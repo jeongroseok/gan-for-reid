@@ -11,10 +11,10 @@ def main(args=None):
     set_persistent_workers(PairedMNISTDataModule)
 
     datamodule = PairedMNISTDataModule(_DATASETS_PATH, num_workers=6,
-                                       batch_size=512, shuffle=True, drop_last=True)
+                                       batch_size=128, shuffle=True, drop_last=True)
 
-    model = GAN(64, 64, datamodule.dims, lr=2e-4,
-                normalize=True, hidden_dim=1024, noise_dim=64)
+    model = GAN(32, 32, datamodule.dims, lr=2e-4,
+                normalize=True, hidden_dim=1024, noise_dim=16, epoch_pretraining=15)
 
     dataset = datamodule.dataset_cls(
         _DATASETS_PATH, False, transform=datamodule.default_transforms())

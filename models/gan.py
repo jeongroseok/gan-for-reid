@@ -27,6 +27,7 @@ class GAN(pl.LightningModule):
             hidden_dim: int = 256,
             normalize: bool = True,
             noise_dim: int = None,
+            epoch_pretraining: int = 5,
             *args: any, **kwargs: any) -> None:
         super().__init__(*args, **kwargs)
         self.save_hyperparameters()
@@ -44,6 +45,8 @@ class GAN(pl.LightningModule):
                                hidden_dim, normalize, noise_dim)
         self.discriminator = Discriminator(
             img_dim, num_classes, hidden_dim, normalize)
+
+        self.automatic_optimization = False
 
     def encode(self, x):
         p, q, z_related, z_unrelated, y_hat = self.encoder.forward(x)
@@ -65,40 +68,50 @@ class GAN(pl.LightningModule):
         beta1 = self.hparams.adam_beta1
         betas = (beta1, 0.999)
 
-        opt_enc = torch.optim.Adam(
-            self.encoder.parameters(), lr, betas)
-        opt_gen = torch.optim.Adam(
-            list(self.encoder.parameters()) + list(self.decoder.parameters()), lr, betas)
-        opt_disc = torch.optim.Adam(
-            self.discriminator.parameters(), lr, betas)
+        parameters_enc = \
+            list(self.encoder.classifier.parameters()) + \
+            list(self.encoder.backbone.parameters()) + \
+            list(self.encoder.fc_related.parameters()) + \
+            list(self.encoder.fc_unrelated.parameters())
 
-        return [
-            {
-                'optimizer': opt_enc,
-                'frequency': 1,
-            },
-            {
-                'optimizer': opt_disc,
-                'frequency': 2,
-            },
-            {
-                'optimizer': opt_gen,
-                'frequency': 2,
-            }
-        ]
-# encoder의 분류기 학습 시킬 것
+        parameters_gen = \
+            list(self.decoder.parameters()) + \
+            list(self.encoder.backbone.parameters()) + \
+            list(self.encoder.fc_related.parameters()) + \
+            list(self.encoder.fc_unrelated.parameters())
 
-    def training_step(self, batch, batch_idx, optimizer_idx=None):
+        parameters_disc = self.discriminator.parameters()
+
+        opt_enc = torch.optim.Adam(parameters_enc, lr, betas)
+        opt_gen = torch.optim.Adam(parameters_gen, lr, betas)
+        opt_disc = torch.optim.Adam(parameters_disc, lr, betas)
+
+        return [opt_enc, opt_gen, opt_disc]
+
+    def training_step(self, batch, batch_idx):
+        opt_e, opt_g, opt_d = self.optimizers()
+
         (x_anchor, x_positive, x_negative), (y_anchor, y_positive, y_negative) = batch
 
-        if optimizer_idx == 0:
-            return self._encoder_step(x_anchor, y_anchor)
-        if optimizer_idx == 1:
-            return self._discriminator_step(x_anchor, x_positive, y_anchor)
-        if optimizer_idx == 2:
-            return self._generator_step(x_anchor, x_positive, y_anchor)
+        if self.current_epoch < self.hparams.epoch_pretraining:
+            pass
+            # encoder
+            loss = self._encoder_step(x_anchor, y_anchor)
+            opt_e.zero_grad()
+            self.manual_backward(loss)
+            opt_e.step()
+        else:
+            # discriminator
+            loss = self._discriminator_step(x_anchor, x_positive, y_anchor)
+            opt_d.zero_grad()
+            self.manual_backward(loss)
+            opt_d.step()
 
-        raise Exception("invalid training step")
+            # generator
+            loss = self._generator_step(x_anchor, x_positive, y_anchor)
+            opt_g.zero_grad()
+            self.manual_backward(loss)
+            opt_g.step()
 
     def _encoder_step(self, x, y):
         _, _, _, _, y_hat = self.encode(x)
@@ -158,7 +171,7 @@ class GAN(pl.LightningModule):
             loss_adv_same + \
             (2 * loss_cls_same) + \
             (10 * loss_recon_same) + \
-            (0.01 * loss_kld_same)
+            (1 * loss_kld_same)
 
         # Diff
         p_p, q_p, z_rel_p, z_unrel_p, y_hat_p = self.encode(x_p)
@@ -174,7 +187,7 @@ class GAN(pl.LightningModule):
             loss_adv_diff + \
             (2 * loss_cls_diff) + \
             (10 * loss_recon_diff) + \
-            (0.01 * loss_kld_diff)
+            (1 * loss_kld_diff)
 
         # Logging
         self.log(f"{self.__class__.__name__}/generator/adv",

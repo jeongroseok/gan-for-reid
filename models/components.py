@@ -25,28 +25,35 @@ class Encoder(nn.Module):
             layers.append(nn.LeakyReLU(0.2))
             return layers
 
-        self.fc = nn.Sequential(
+        self.backbone = nn.Sequential(
             nn.Flatten(),
             *block(np.prod(img_dim), first_hidden_dim, False),
             *block(first_hidden_dim, first_hidden_dim // 2),
+            *block(first_hidden_dim // 2, first_hidden_dim // 2),
             *block(first_hidden_dim // 2, first_hidden_dim // 4),
         )
-        self.related = nn.Sequential( # recon + class loss
+        self.fc_related = nn.Sequential(  # recon + class loss
+            *block(first_hidden_dim // 4, first_hidden_dim // 4),
             nn.Linear(first_hidden_dim // 4, first_hidden_dim // 8),
             nn.ReLU(),
             nn.Linear(first_hidden_dim // 8, latent_related_dim),
         )
-        self.unrelated = nn.Sequential( # recon + kl loss
+        self.fc_unrelated = nn.Sequential(  # recon + kl loss
+            *block(first_hidden_dim // 4, first_hidden_dim // 4),
             nn.Linear(first_hidden_dim // 4, first_hidden_dim // 8),
             nn.ReLU(),
             nn.Linear(first_hidden_dim // 8, latent_unrelated_dim * 2)
         )
-        self.classification = nn.Linear(latent_related_dim, num_classes)
+        self.classifier = nn.Sequential(
+            *block(latent_related_dim, first_hidden_dim // 4),
+            *block(first_hidden_dim // 4, first_hidden_dim // 8),
+            nn.Linear(first_hidden_dim // 8, num_classes)
+        )
 
     def forward(self, x: Tensor):
-        x_fc = self.fc(x)
-        z_related = self.related(x_fc)
-        x_unrelated = self.unrelated(x_fc)
+        x_fc = self.backbone(x)
+        z_related = self.fc_related(x_fc)
+        x_unrelated = self.fc_unrelated(x_fc)
         mu = x_unrelated[..., :self.latent_unrelated_dim]
         lv = x_unrelated[..., self.latent_unrelated_dim:]
 
@@ -56,9 +63,37 @@ class Encoder(nn.Module):
         q = torch.distributions.Normal(mu, std)
         z_unrelated = q.rsample()
 
-        y_hat = self.classification(z_related)
+        y_hat = self.classifier(z_related)
 
         return p, q, z_related, z_unrelated, y_hat
+
+
+class Classifier(nn.Module):
+    def __init__(
+        self,
+        latent_related_dim: int,
+        num_classes: int,
+        first_hidden_dim: int = 256,
+        normalize: bool = True,
+    ):
+        def block(in_feat, out_feat, normalize: bool = normalize):
+            layers = [nn.Linear(in_feat, out_feat)]
+            if normalize:
+                layers.append(nn.BatchNorm1d(out_feat))
+            layers.append(nn.ReLU())
+            return layers
+
+        self.fc = nn.Sequential(
+            nn.Flatten(),
+            *block(latent_related_dim, first_hidden_dim, False),
+            *block(first_hidden_dim, first_hidden_dim // 4),
+            *block(first_hidden_dim // 4, first_hidden_dim // 8),
+            nn.Linear(first_hidden_dim // 8, num_classes)
+        )
+
+    def forward(self, z_related: Tensor):
+        y_hat = self.fc(z_related)
+        return y_hat
 
 
 class Decoder(nn.Module):
@@ -89,6 +124,7 @@ class Decoder(nn.Module):
         self.fc = nn.Sequential(
             *block(first_features, last_hidden_dim // 4),
             *block(last_hidden_dim // 4, last_hidden_dim // 2),
+            *block(last_hidden_dim // 2, last_hidden_dim // 2),
             *block(last_hidden_dim // 2, last_hidden_dim),
             nn.Linear(last_hidden_dim, np.prod(img_dim)),
             nn.Tanh(),

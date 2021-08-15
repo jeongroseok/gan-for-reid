@@ -4,7 +4,7 @@ from pl_bolts.datamodules.vision_datamodule import VisionDataModule
 from pl_examples import _DATASETS_PATH
 from torchvision import transforms as transform_lib
 
-from datasets import PairedMNIST
+from datasets.paired_mnist import PairedMNIST
 
 
 class PairedMNISTDataModule(VisionDataModule):
