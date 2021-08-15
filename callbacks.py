@@ -5,14 +5,13 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import Callback
 from torch import Tensor
 
-from datasets import PairedMNIST
 from models.gan import GAN
 
 
 class LatentSpaceVisualizer(Callback):
     def __init__(
         self,
-        dataset: PairedMNIST,
+        dataset,
         steps: int = 11,
     ):
         super().__init__()
@@ -69,7 +68,7 @@ class LatentSpaceVisualizer(Callback):
 class LatentDimInterpolator(Callback):
     def __init__(
         self,
-        dataset: PairedMNIST,
+        dataset,
         steps: int = 11,
     ):
         super().__init__()

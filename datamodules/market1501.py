@@ -12,6 +12,7 @@ from torchvision import transforms as transform_lib
 class Market1501DataModule(LightningDataModule):
     dataset_cls = Market1501
     name = "market1501"
+    dims = (3, 128, 64)
 
     def __init__(
         self,
