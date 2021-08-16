@@ -67,6 +67,11 @@ class Encoder(nn.Module):
 
         return p, q, z_related, z_unrelated, y_hat
 
+    def encode(self, x: Tensor):
+        x_fc = self.backbone(x)
+        z_related = self.fc_related(x_fc)
+        return z_related
+
 
 class Classifier(nn.Module):
     def __init__(

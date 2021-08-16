@@ -132,7 +132,6 @@ ENV/
 
 # data
 .data/
-Datasets/
 mnist/
 legacy/checkpoints/
 

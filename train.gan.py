@@ -10,8 +10,8 @@ def main(args=None):
     datamodule = PairedMarket1501DataModule(_DATASETS_PATH, num_workers=6,
                                       batch_size=32, shuffle=True, drop_last=True)
 
-    model = GAN(64, 64, datamodule.dims, lr=2e-4,
-                normalize=True, hidden_dim=1024, noise_dim=16, epoch_pretraining=50, num_classes=751)
+    model = GAN(256, 192, datamodule.dims, lr=2e-4,
+                normalize=True, hidden_dim=2048, noise_dim=16, epoch_pretraining=50, num_classes=751)
 
     dataset = datamodule.dataset_cls(
         _DATASETS_PATH, download=False, transform=datamodule.default_transforms())
