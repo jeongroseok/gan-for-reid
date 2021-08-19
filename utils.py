@@ -113,3 +113,12 @@ class Evaluator():
     @property
     def matrix(self):
         return self.__matrix
+
+    def summary(self, k_list: list[int]):
+        results = []
+        for k in k_list:
+            acc = self.evaluate_top_k_accuracy(k)
+            results.append((k, acc))
+        print('# Accuracies:')
+        for item in results:
+            print(f'- top-{item[0]}: {item[1]}')
