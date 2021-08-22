@@ -5,6 +5,7 @@ model_weights/
 app/models/
 pip-wheel-metadata/
 lightning_logs/
+lightning_logs_old/
 .vscode/
 
 # Test-tube

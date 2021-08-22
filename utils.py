@@ -2,6 +2,7 @@ from time import time
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pytorch_lightning as pl
 import torch
 from pl_bolts.datamodules.vision_datamodule import VisionDataModule
 from torch.utils.data import DataLoader, Dataset
@@ -35,12 +36,12 @@ class Evaluator():
     def __init__(
         self,
         root: str,
-        encoder: Encoder,
+        encoder: pl.LightningModule,
         output_prefix: str,
         batch_size: int = 2048,
         num_workers: int = 2
     ) -> None:
-        self.__encoder = encoder
+        self.__encoder = encoder.cuda().eval()
         self.__output_prefix = output_prefix
         self.__batch_size = batch_size
         self.__num_workers = num_workers
@@ -102,11 +103,13 @@ class Evaluator():
             persistent_workers=False,
         )
 
+    @torch.no_grad()  # 이거 안넣으면 램 해제 안됨
     def __extract_features(self, dataset: Market1501):
         print(f'extracting features of {dataset.mode}...')
         dataloader = self.__data_loader(dataset)
-        features = torch.Tensor()
-        for (images, labels) in tqdm(dataloader):
+        features = torch.Tensor().cuda()
+        for (images, _) in tqdm(dataloader):
+            images = images.cuda()
             features = torch.cat([features, self.__encoder.encode(images)])
         return features
 
