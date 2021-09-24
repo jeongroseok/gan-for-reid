@@ -1,7 +1,7 @@
 from pytorch_lightning.utilities.cli import LightningCLI
 
-from datamodules import PairedMNISTDataModule
-from models.gan import GAN
+from reidgan.datamodules.paired_mnist import PairedMNISTDataModule
+from reidgan.models.gan import GAN
 from utils import set_persistent_workers
 
 

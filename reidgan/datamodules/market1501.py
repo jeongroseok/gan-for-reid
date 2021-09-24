@@ -1,8 +1,8 @@
 import os
-from typing import Optional, Union
+from typing import List, Optional, Union
 
 import torch
-from datasets.market1501 import Market1501, PairedMarket1501
+from ..datasets.market1501 import Market1501, PairedMarket1501
 from pl_examples import _DATASETS_PATH
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, Dataset, random_split
@@ -43,44 +43,57 @@ class Market1501DataModule(LightningDataModule):
         self.persistent_workers = persistent_workers
 
     def prepare_data(self, *args: any, **kwargs: any) -> None:
-        self.num_classes = len(self.dataset_cls(
-            self.data_dir, download=True).classes)
+        self.num_classes = len(self.dataset_cls(self.data_dir, download=True).classes)
 
     def setup(self, stage: Optional[str] = None) -> None:
         if stage == "fit" or stage is None:
-            train_transforms = self.default_transforms(
-            ) if self.train_transforms is None else self.train_transforms
-            val_transforms = self.default_transforms(
-            ) if self.val_transforms is None else self.val_transforms
+            train_transforms = (
+                self.default_transforms()
+                if self.train_transforms is None
+                else self.train_transforms
+            )
+            val_transforms = (
+                self.default_transforms()
+                if self.val_transforms is None
+                else self.val_transforms
+            )
 
             dataset_train = self.dataset_cls(
-                self.data_dir, mode='train', transform=train_transforms)
+                self.data_dir, mode="train", transform=train_transforms
+            )
             dataset_val = self.dataset_cls(
-                self.data_dir, mode='train', transform=val_transforms)
+                self.data_dir, mode="train", transform=val_transforms
+            )
 
             # Split
             self.dataset_train = self._split_dataset(dataset_train)
             self.dataset_val = self._split_dataset(dataset_val, train=False)
 
         if stage == "test" or stage is None:
-            test_transforms = self.default_transforms(
-            ) if self.test_transforms is None else self.test_transforms
+            test_transforms = (
+                self.default_transforms()
+                if self.test_transforms is None
+                else self.test_transforms
+            )
             self.dataset_test = self.dataset_cls(
                 # 나중에 query, gallery에 맞게 바꿔야함!
-                self.data_dir, mode='train', transform=test_transforms
+                self.data_dir,
+                mode="train",
+                transform=test_transforms,
             )
 
     def _split_dataset(self, dataset: Dataset, train: bool = True) -> Dataset:
         len_dataset = len(dataset)  # type: ignore[arg-type]
         splits = self._get_splits(len_dataset)
         dataset_train, dataset_val = random_split(
-            dataset, splits, generator=torch.Generator().manual_seed(self.seed))
+            dataset, splits, generator=torch.Generator().manual_seed(self.seed)
+        )
 
         if train:
             return dataset_train
         return dataset_val
 
-    def _get_splits(self, len_dataset: int) -> list[int]:
+    def _get_splits(self, len_dataset: int) -> List[int]:
         if isinstance(self.val_split, int):
             train_len = len_dataset - self.val_split
             splits = [train_len, self.val_split]
@@ -89,28 +102,34 @@ class Market1501DataModule(LightningDataModule):
             train_len = len_dataset - val_len
             splits = [train_len, val_len]
         else:
-            raise ValueError(f'Unsupported type {type(self.val_split)}')
+            raise ValueError(f"Unsupported type {type(self.val_split)}")
 
         return splits
 
     def default_transforms(self) -> callable:
         if self.normalize:
-            mnist_transforms = transform_lib.Compose([
-                transform_lib.ToTensor(), transform_lib.Normalize(mean=(0.5, ), std=(0.5, ))
-            ])
-        else:
             mnist_transforms = transform_lib.Compose(
-                [transform_lib.ToTensor()])
+                [
+                    transform_lib.ToTensor(),
+                    transform_lib.Normalize(mean=(0.5,), std=(0.5,)),
+                ]
+            )
+        else:
+            mnist_transforms = transform_lib.Compose([transform_lib.ToTensor()])
 
         return mnist_transforms
 
     def train_dataloader(self, *args: any, **kwargs: any) -> DataLoader:
         return self._data_loader(self.dataset_train, shuffle=self.shuffle)
 
-    def val_dataloader(self, *args: any, **kwargs: any) -> Union[DataLoader, list[DataLoader]]:
+    def val_dataloader(
+        self, *args: any, **kwargs: any
+    ) -> Union[DataLoader, List[DataLoader]]:
         return self._data_loader(self.dataset_val)
 
-    def test_dataloader(self, *args: any, **kwargs: any) -> Union[DataLoader, list[DataLoader]]:
+    def test_dataloader(
+        self, *args: any, **kwargs: any
+    ) -> Union[DataLoader, List[DataLoader]]:
         return self._data_loader(self.dataset_test)
 
     def _data_loader(self, dataset: Dataset, shuffle: bool = False) -> DataLoader:
@@ -121,7 +140,9 @@ class Market1501DataModule(LightningDataModule):
             num_workers=self.num_workers,
             drop_last=self.drop_last,
             pin_memory=self.pin_memory,
-            persistent_workers=self.persistent_workers if self.num_workers > 0 else False,
+            persistent_workers=self.persistent_workers
+            if self.num_workers > 0
+            else False,
         )
 
 

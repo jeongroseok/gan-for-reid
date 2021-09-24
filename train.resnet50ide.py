@@ -1,9 +1,9 @@
 import pytorch_lightning as pl
 from pl_examples import _DATASETS_PATH
 
-from callbacks import LatentDimInterpolator, LatentSpaceVisualizer
-from datamodules.market1501 import Market1501DataModule
-from models.ide import ResNet50IDE
+from reidgan.callbacks import LatentDimInterpolator, LatentSpaceVisualizer
+from reidgan.datamodules.market1501 import Market1501DataModule
+from reidgan.models.ide import ResNet50IDE
 
 
 def main(args=None):

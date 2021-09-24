@@ -2,22 +2,25 @@ import glob
 import os
 import os.path
 import re
-from typing import Optional
+from typing import Dict, List, Optional, Tuple
 from urllib.error import URLError
 
 import numpy as np
 import torch
 from PIL import Image
 from torchvision.datasets import VisionDataset
-from torchvision.datasets.utils import (check_integrity,
-                                        download_and_extract_archive,
-                                        extract_archive, verify_str_arg)
+from torchvision.datasets.utils import (
+    check_integrity,
+    download_and_extract_archive,
+    extract_archive,
+    verify_str_arg,
+)
 
 
 class Market1501(VisionDataset):
     name = "Market1501"
     mirrors = [
-        'http://188.138.127.15:81/Datasets/',
+        "http://188.138.127.15:81/Datasets/",
     ]
     resources = [
         ("Market-1501-v15.09.15.zip", "226086b4b519c148eb2f3030729c27e257e3f5ea"),
@@ -26,14 +29,13 @@ class Market1501(VisionDataset):
     def __init__(
         self,
         root: str,
-        mode: str = 'train',
+        mode: str = "train",
         transform: Optional[callable] = None,
         target_transform: Optional[callable] = None,
         download: bool = False,
         market1501_500k=False,
     ):
-        super().__init__(root, transform=transform,
-                         target_transform=target_transform)
+        super().__init__(root, transform=transform, target_transform=target_transform)
         self.mode = mode
         self.market1501_500k = market1501_500k
 
@@ -45,15 +47,14 @@ class Market1501(VisionDataset):
 
     def _load_data(self):
         data = []
-        if self.mode == 'train':
+        if self.mode == "train":
             data = _process_dir(self.train_folder, relabel=True)
-        elif self.mode == 'query':
+        elif self.mode == "query":
             data = _process_dir(self.query_folder, relabel=False)
-        elif self.mode == 'gallery':
+        elif self.mode == "gallery":
             data = _process_dir(self.gallery_folder, relabel=False)
             if self.market1501_500k:
-                data += _process_dir(self.extra_gallery_folder,
-                                     relabel=False)
+                data += _process_dir(self.extra_gallery_folder, relabel=False)
         targets = [i[1] for i in data]  # (pid, cid)
         image_paths = [i[0] for i in data]
 
@@ -76,42 +77,41 @@ class Market1501(VisionDataset):
 
     @property
     def download_folder(self) -> str:
-        return os.path.join(self.root, self.name, 'download')
+        return os.path.join(self.root, self.name, "download")
 
     @property
     def extract_folder(self) -> str:
-        return os.path.join(self.root, self.name, 'extract')
+        return os.path.join(self.root, self.name, "extract")
 
     @property
     def train_folder(self):
-        return os.path.join(self.extract_folder, 'bounding_box_train')
+        return os.path.join(self.extract_folder, "bounding_box_train")
 
     @property
     def query_folder(self):
-        return os.path.join(self.extract_folder, 'query')
+        return os.path.join(self.extract_folder, "query")
 
     @property
     def gallery_folder(self):
-        return os.path.join(self.extract_folder, 'bounding_box_test')
+        return os.path.join(self.extract_folder, "bounding_box_test")
 
     @property
     def extra_gallery_folder(self):
-        return os.path.join(self.extract_folder, 'images')
+        return os.path.join(self.extract_folder, "images")
 
     @property
-    def class_to_idx(self) -> dict[str, int]:
+    def class_to_idx(self) -> Dict[str, int]:
         return {_class: i for i, _class in enumerate(self.classes)}
 
     def _check_exists(self) -> bool:
         return all(
-            check_integrity(os.path.join(self.download_folder,
-                            os.path.basename(url)))
+            check_integrity(os.path.join(self.download_folder, os.path.basename(url)))
             for url, _ in self.resources
         )
 
     def download(self) -> None:
         if self._check_exists():
-            print('Files already downloaded and verified')
+            print("Files already downloaded and verified")
             return
 
         os.makedirs(self.download_folder, exist_ok=True)
@@ -127,12 +127,10 @@ class Market1501(VisionDataset):
                         download_root=self.download_folder,
                         extract_root=self.extract_folder,
                         filename=filename,
-                        md5=md5
+                        md5=md5,
                     )
                 except URLError as error:
-                    print(
-                        "Failed to download (trying next):\n{}".format(error)
-                    )
+                    print("Failed to download (trying next):\n{}".format(error))
                     continue
                 finally:
                     print()
@@ -147,19 +145,20 @@ def _read_image(path):
         raise IOError('"{}" does not exist'.format(path))
     while not got_img:
         try:
-            img = Image.open(path).convert('RGB')
+            img = Image.open(path).convert("RGB")
             got_img = True
         except IOError:
             print(
-                'IOError incurred when reading "{}". Will redo. Don\'t worry. Just chill.'
-                .format(path)
+                'IOError incurred when reading "{}". Will redo. Don\'t worry. Just chill.'.format(
+                    path
+                )
             )
     return img
 
 
-def _process_dir(dir_path, relabel=False) -> list[tuple[str, int, int]]:
-    img_paths = glob.glob(os.path.join(dir_path, '*.jpg'))
-    pattern = re.compile(r'([-\d]+)_c(\d)')
+def _process_dir(dir_path, relabel=False) -> List[Tuple[str, int, int]]:
+    img_paths = glob.glob(os.path.join(dir_path, "*.jpg"))
+    pattern = re.compile(r"([-\d]+)_c(\d)")
     pid_container = set()
     for img_path in img_paths:
         pid, _ = map(int, pattern.search(img_path).groups())
@@ -183,15 +182,15 @@ def _process_dir(dir_path, relabel=False) -> list[tuple[str, int, int]]:
 
 class PairedMarket1501(Market1501):
     def __init__(
-        self,
-        *args: any,
-        **kwargs: any,
+        self, *args: any, **kwargs: any,
     ):
         super().__init__(*args, **kwargs)
 
         self.targets_set = set(self.targets.numpy())
-        self.target_to_indices = {target: np.where(self.targets.numpy() == target)[
-            0] for target in self.targets_set}
+        self.target_to_indices = {
+            target: np.where(self.targets.numpy() == target)[0]
+            for target in self.targets_set
+        }
 
     def __getitem__(self, index_a):
         img_a, target_a = super().__getitem__(index_a)

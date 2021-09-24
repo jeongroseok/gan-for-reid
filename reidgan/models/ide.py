@@ -1,19 +1,31 @@
+from typing import List, Tuple
+
 import pytorch_lightning as pl
 import torch
 import torchmetrics.classification.accuracy
 from torchvision.models.resnet import resnet50
 
-from .components import *
+from .components.resnet import create_encoder
 
 
 class ResNet50IDE(pl.LightningModule):
+    class __HPARAMS:
+        img_dim: Tuple[int, int, int]
+        num_classes: int
+        lr: float
+        adam_beta1: float
+
+    hparams: __HPARAMS
+
     def __init__(
-            self,
-            img_dim: tuple[int, int, int] = (1, 28, 28),
-            num_classes: int = 10,
-            lr: float = 1e-4,
-            adam_beta1: float = 0.5,
-            *args: any, **kwargs: any) -> None:
+        self,
+        img_dim: Tuple[int, int, int] = (1, 28, 28),
+        num_classes: int = 10,
+        lr: float = 1e-4,
+        adam_beta1: float = 0.5,
+        *args: any,
+        **kwargs: any,
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.save_hyperparameters()
 
@@ -22,7 +34,7 @@ class ResNet50IDE(pl.LightningModule):
         self.metric_accuracy = torchmetrics.classification.accuracy.Accuracy()
 
         self.resnet50 = resnet50(False, num_classes=num_classes)
-    
+
     def encode(self, x):
         x = self.resnet50.conv1(x)
         x = self.resnet50.bn1(x)
@@ -62,18 +74,15 @@ class ResNet50IDE(pl.LightningModule):
 
 class IDE(pl.LightningModule):
     def __init__(
-            self,
-            latent_related_dim: int = 32,
-            latent_unrelated_dim: int = 32,
-            img_dim: tuple[int, int, int] = (1, 28, 28),
-            num_classes: int = 10,
-            lr: float = 1e-4,
-            adam_beta1: float = 0.5,
-            hidden_dim: int = 256,
-            normalize: bool = True,
-            noise_dim: int = None,
-            epoch_pretraining: int = 5,
-            *args: any, **kwargs: any) -> None:
+        self,
+        enc_type: str = "resnet18",
+        img_dim: Tuple[int, int, int] = (1, 28, 28),
+        num_classes: int = 10,
+        lr: float = 1e-4,
+        adam_beta1: float = 0.5,
+        *args: any,
+        **kwargs: any,
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.save_hyperparameters()
 
@@ -81,11 +90,12 @@ class IDE(pl.LightningModule):
         self.criterion_cls = torch.nn.CrossEntropyLoss()
         self.metric_accuracy = torchmetrics.classification.accuracy.Accuracy()
 
-        self.encoder = Encoder(latent_related_dim, latent_unrelated_dim, img_dim,
-                               num_classes, hidden_dim, normalize)
+        self.encoder = create_encoder(
+            enc_type, num_classes, img_dim, False, False, False
+        )
 
     def forward(self, x):
-        _, _, _, _, y_hat = self.encoder.forward(x)
+        y_hat = self.encoder.forward(x)
         return y_hat
 
     def configure_optimizers(self):
@@ -93,12 +103,7 @@ class IDE(pl.LightningModule):
         beta1 = self.hparams.adam_beta1
         betas = (beta1, 0.999)
 
-        parameters_enc = \
-            list(self.encoder.classifier.parameters()) + \
-            list(self.encoder.backbone.parameters()) + \
-            list(self.encoder.fc_related.parameters())
-
-        return torch.optim.Adam(parameters_enc, lr, betas)
+        return torch.optim.Adam(self.parameters(), lr, betas)
 
     def training_step(self, batch, batch_idx):
         x, y = batch

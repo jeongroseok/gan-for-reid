@@ -1,5 +1,5 @@
-from datasets.market1501 import PairedMarket1501
-from datamodules.market1501 import PairedMarket1501DataModule
+from reidgan.datasets.market1501 import PairedMarket1501
+from reidgan.datamodules.market1501 import PairedMarket1501DataModule
 from pl_examples import _DATASETS_PATH
 import matplotlib.pyplot as plt
 from torchvision.utils import make_grid

@@ -1,7 +1,7 @@
 from pl_examples import _DATASETS_PATH
 
-from models.ide import ResNet50IDE
-from utils import Evaluator
+from reidgan.models.ide import ResNet50IDE
+from reidgan.utils import Evaluator
 
 CKPT_PATH = fr'lightning_logs\version_0\checkpoints\epoch=26-step=701.ckpt'
 
