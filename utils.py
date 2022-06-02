@@ -10,10 +10,10 @@ from torchvision import transforms as transform_lib
 from torchvision.utils import make_grid
 from tqdm import tqdm
 
-from datasets.market1501 import Market1501
+from .datasets.market1501 import Market1501
 
 
-def set_persistent_workers(data_module: VisionDataModule):
+def set_persistent_workers(datamodule: VisionDataModule):
     def _data_loader(self: VisionDataModule,
                      dataset: Dataset,
                      shuffle: bool = False) -> DataLoader:
@@ -27,7 +27,7 @@ def set_persistent_workers(data_module: VisionDataModule):
             persistent_workers=True
         )
 
-    data_module._data_loader = _data_loader
+    datamodule._data_loader = _data_loader
 
 
 class Evaluator():

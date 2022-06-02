@@ -2,8 +2,7 @@ import os
 from typing import List, Optional, Union
 
 import torch
-from ..datasets.market1501 import Market1501, PairedMarket1501
-from pl_examples import _DATASETS_PATH
+from datasets.market1501 import Market1501, PairedMarket1501
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, Dataset, random_split
 from torchvision import transforms as transform_lib
@@ -16,7 +15,7 @@ class Market1501DataModule(LightningDataModule):
 
     def __init__(
         self,
-        data_dir: Optional[str] = _DATASETS_PATH,
+        data_dir: Optional[str],
         val_split: Union[int, float] = 0.2,
         num_workers: int = 4,
         normalize: bool = True,
@@ -43,7 +42,7 @@ class Market1501DataModule(LightningDataModule):
         self.persistent_workers = persistent_workers
 
     def prepare_data(self, *args: any, **kwargs: any) -> None:
-        self.num_classes = len(self.dataset_cls(self.data_dir, download=True).classes)
+        self.num_classes = len(self.dataset_cls(self.data_dir).classes)
 
     def setup(self, stage: Optional[str] = None) -> None:
         if stage == "fit" or stage is None:
